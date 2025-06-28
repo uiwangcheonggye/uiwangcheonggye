@@ -8,6 +8,8 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    environment: uiwangcheonggye
+
 
     steps:
     - name: Checkout repository
