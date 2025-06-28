@@ -1,0 +1,33 @@
+name: Google Sheets Sync
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # 매일 00:00 UTC (한국 시간 09:00)
+  workflow_dispatch:     # 수동 실행도 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Write service account credentials
+      run: |
+        echo "${{ secrets.GOOGLE_CREDENTIALS }}" > credentials.json
+
+    - name: Run script
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: credentials.json
+      run: python auth_batch.py
