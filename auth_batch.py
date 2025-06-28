@@ -1,4 +1,5 @@
 # pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib gspread pandas
+from gspread.utils import rowcol_to_a1
 
 import time
 import gspread
@@ -76,8 +77,8 @@ def merge_into_admin_sheet():
         "이름",
         "비상연락망",
         "카카오톡 안내(세대별 1인, 2인부터는 일정기간 후 참여가능)",
-        "네이버카페 ID",
         "카카오톡 닉네임",
+        "네이버카페 ID",
         "계약서 업로드",
         "입주예정자협의회 위임장 업로드",
         "비고",
@@ -85,6 +86,7 @@ def merge_into_admin_sheet():
     admin_df = pd.DataFrame(
         admin_ws.get_all_records(expected_headers=expected_headers, head=3)
     )
+    admin_df = admin_df.astype(str)
 
     # 응답 시트 데이터 불러오기
     response_df = pd.DataFrame(response_ws.get_all_records())
@@ -109,59 +111,61 @@ def merge_into_admin_sheet():
     # 병합
     for i, row in admin_df.iterrows():
         key = row["KEY"]
-        if key in response_df.index:
-            res_list = response_df.loc[[key]]
+        if key not in response_df.index:
+            continue
 
-            for _, res in res_list.iterrows():
-                if "이름" in res and "이름" in admin_df.columns:
-                    original = str(admin_df.at[i, "이름"]).strip()
-                    items = set(filter(None, [original, str(res["이름"]).strip()]))
-                    admin_df.at[i, "이름"] = ", ".join(sorted(items))
+        res_list = response_df.loc[[key]]
+        for _, res in res_list.iterrows():
+            def merge_column(res_col, admin_col):
+                if res_col in res and admin_col in admin_df.columns:
+                    original = str(admin_df.at[i, admin_col]).strip()
+                    new = str(res[res_col]).strip()
+                    items = set(filter(None, [original, new]))
+                    admin_df.at[i, admin_col] = ", ".join(sorted(items))
 
-                if "비상연락망" in res and "비상연락망" in admin_df.columns:
-                    original = str(admin_df.at[i, "비상연락망"]).strip()
-                    items = set(
-                        filter(None, [original, str(res["비상연락망"]).strip()])
-                    )
-                    admin_df.at[i, "비상연락망"] = ", ".join(sorted(items))
+            merge_column("이름", "이름")
+            merge_column("비상연락망", "비상연락망")
+            merge_column("네이버카페 ID", "네이버카페 ID")
+            merge_column("계약서 업로드", "계약서 업로드")
+            merge_column("위임장 업로드", "입주예정자협의회 위임장 업로드")
 
-                if "네이버카페 ID" in res and "네이버카페 ID" in admin_df.columns:
-                    original = str(admin_df.at[i, "네이버카페 ID"]).strip()
-                    items = set(
-                        filter(None, [original, str(res["네이버카페 ID"]).strip()])
-                    )
-                    admin_df.at[i, "네이버카페 ID"] = ", ".join(sorted(items))
+    protected_cols = [
+        "카카오톡 안내(세대별 1인, 2인부터는 일정기간 후 참여가능)",
+        "카카오톡 닉네임",
+    ]
 
-                if "계약서 업로드" in res and "계약서 업로드" in admin_df.columns:
-                    original = str(admin_df.at[i, "계약서 업로드"]).strip()
-                    items = set(
-                        filter(None, [original, str(res["계약서 업로드"]).strip()])
-                    )
-                    admin_df.at[i, "계약서 업로드"] = ", ".join(sorted(items))
+    # ✨ 업데이트할 값 생성
+    update_values = []
+    for _, row in admin_df.iterrows():
+        row_values = []
+        is_empty = True
 
-                if (
-                    "위임장 업로드" in res
-                    and "입주예정자협의회 위임장 업로드" in admin_df.columns
-                ):
-                    original = str(
-                        admin_df.at[i, "입주예정자협의회 위임장 업로드"]
-                    ).strip()
-                    items = set(
-                        filter(None, [original, str(res["위임장 업로드"]).strip()])
-                    )
-                    admin_df.at[i, "입주예정자협의회 위임장 업로드"] = ", ".join(
-                        sorted(items)
-                    )
+        for col in expected_headers:
+            if col in protected_cols:
+                row_values.append("")  # 보호 컬럼은 공란으로 유지
+            else:
+                val = row.get(col, "")
+                val_str = "" if pd.isna(val) else str(val).strip()
+                row_values.append(val_str)
+                if val_str:
+                    is_empty = False
 
-    # 시트에 덮어쓰기
-    # 헤더 3줄 건너뛰고, 데이터만 업데이트
-    admin_df = admin_df.drop(columns=["KEY"])
-    update_data = admin_df.replace({np.nan: ""}).values.tolist()
-    admin_ws.batch_clear(["A4:Z"])  # 필요시 범위 조절
-    admin_ws.update(values=update_data, range_name="A4")
+        if not is_empty:
+            update_values.append(row_values)
 
-    print("✅ 병합 완료")
+    # ⛔ 비어 있으면 건너뜀
+    if not update_values:
+        print("업데이트할 내용이 없습니다.")
+    else:
+        # 🧮 B4 기준 범위 계산
+        start_col_letter = "B"
+        start_cell = "B4"
+        end_col_letter = chr(ord(start_col_letter) + len(expected_headers) - 1)
+        end_row = 3 + len(update_values) + 1
+        range_name = f"{start_cell}:{end_col_letter}{3 + len(update_values)}"
 
+        print(f"🟢 Updating range: {range_name}")
+        admin_ws.update(range_name=range_name, values=update_values)
 
 def main():
     copy_response_sheet_to_admin_sheet()
