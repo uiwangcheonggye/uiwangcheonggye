@@ -76,7 +76,7 @@ def merge_into_admin_sheet():
         "이름",
         "비상연락망",
         "입주계약자 확인",
-        "카페 안내",
+        "카페 닉네임",
         "카카오톡 안내(세대별 1인, 2인부터는 일정기간 후 참여가능)",
         "카카오톡 참여확인(동호수 닉네임)",
         "입주예정자협의회 위임장 제출",
@@ -130,12 +130,12 @@ def merge_into_admin_sheet():
                     )
 
                 # 네이버카페 아이디 → 카페 안내
-                if "네이버카페 아이디" in res and "카페 안내" in admin_df.columns:
-                    original = str(admin_df.at[i, "카페 안내"]).strip()
+                if "네이버카페 닉네임" in res and "카페 닉네임" in admin_df.columns:
+                    original = str(admin_df.at[i, "카페 닉네임"]).strip()
                     items = set(
-                        filter(None, [original, str(res["네이버카페 아이디"]).strip()])
+                        filter(None, [original, str(res["네이버카페 닉네임"]).strip()])
                     )
-                    admin_df.at[i, "카페 안내"] = ", ".join(sorted(items))
+                    admin_df.at[i, "카페 닉네임"] = ", ".join(sorted(items))
 
                 # # 위임장 업로드 → 입주예정자협의회 위임장 제출
                 # if '위임장 업로드' in res and '입주예정자협의회 위임장 제출' in admin_df.columns:
