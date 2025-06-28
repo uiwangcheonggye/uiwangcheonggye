@@ -28,6 +28,9 @@ jobs:
     - name: Write service account credentials
       run: |
         echo "${{ secrets.GOOGLE_CREDENTIALS }}" > credentials.json
+        
+    - name: Debug credentials.json
+      run: cat credentials.json
 
     - name: Run script
       env:
