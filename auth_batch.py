@@ -81,6 +81,7 @@ def merge_into_admin_sheet():
         "네이버카페 ID",
         "계약서 업로드",
         "입주예정자협의회 위임장 업로드",
+        "자격구분",
         "비고",
     ]
     admin_df = pd.DataFrame(
@@ -120,14 +121,20 @@ def merge_into_admin_sheet():
                 if res_col in res and admin_col in admin_df.columns:
                     original = str(admin_df.at[i, admin_col]).strip()
                     new = str(res[res_col]).strip()
-                    items = set(filter(None, [original, new]))
-                    admin_df.at[i, admin_col] = ", ".join(sorted(items))
+
+                    # 쉼표로 스플릿 후 strip() → set으로 중복 제거
+                    original_items = [s.strip() for s in original.split(",") if s.strip()]
+                    new_items = [s.strip() for s in new.split(",") if s.strip()]
+
+                    merged = sorted(set(original_items + new_items))
+                    admin_df.at[i, admin_col] = ", ".join(merged)
 
             merge_column("이름", "이름")
             merge_column("비상연락망", "비상연락망")
             merge_column("네이버카페 ID", "네이버카페 ID")
             merge_column("계약서 업로드", "계약서 업로드")
             merge_column("위임장 업로드", "입주예정자협의회 위임장 업로드")
+            merge_column("자격구분", "자격구분")
 
     protected_cols = [
         "카카오톡 안내(세대별 1인, 2인부터는 일정기간 후 참여가능)",
